@@ -8,6 +8,8 @@ export const MoveProvider = ({ children }: MoveProviderProps) => {
     const [output, setOutput] = useState<CompilerOutput>({} as CompilerOutput)
     const [errors, setErrors] = useState<CompileError>({} as CompileError)
 
+    const [tomlPath, setTomlPath] = useState<string>("")
+
     useEffect(() => {
     }, [])
 
@@ -23,6 +25,8 @@ export const MoveProvider = ({ children }: MoveProviderProps) => {
                 setOutput,
                 errors,
                 setErrors,
+                tomlPath,
+                setTomlPath,
             }}
         >
             {children}
@@ -40,6 +44,8 @@ export const MoveContext = createContext({
     setOutput: (output: CompilerOutput) => { },
     errors: {} as CompileError,
     setErrors: (errors: CompileError) => { },
+    tomlPath: "",
+    setTomlPath: (path: string) => { },
 })
 
 export const useMove = () => useContext(MoveContext)

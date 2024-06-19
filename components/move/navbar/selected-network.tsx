@@ -15,6 +15,8 @@ export const hexToDecimal = (hex: string): number => parseInt(hex, 16)
 
 interface SelectedNetworkProps extends React.HTMLAttributes<HTMLDivElement> { }
 
+// const chains = await client.getChainIdentifier();
+// console.log(chains, parseInt(chains, 16))
 export function SelectedNetwork({ }: SelectedNetworkProps) {
     const ctx = useSuiClientContext();
 

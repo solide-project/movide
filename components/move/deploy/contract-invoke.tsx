@@ -13,21 +13,22 @@ import { useMove } from "../move-provider";
 import { Input } from "@/components/ui/input";
 import { useLogger } from "@/components/core/providers/logger-provider";
 import { SuiMoveNormalizedFunction, SuiMoveNormalizedModule, SuiMoveNormalizedType, SuiObjectChange, SuiTransactionBlock, SuiTransactionBlockResponse } from "@mysten/sui/client";
+import { useSuiHooks } from "@/lib/move/hook";
+import { MoveModule, TypeSingle, TypeStruct } from "@/lib/move/interface";
 
 interface ContractInvokeProps extends React.HTMLAttributes<HTMLDivElement> { }
 
 export function ContractInvoke({ className }: ContractInvokeProps) {
     const { output } = useMove();
     const logger = useLogger();
+    const { client, account, getNormalizedMoveModulesByPackage } = useSuiHooks();
     const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
-    const ctx = useSuiClientContext();
-    const client = useSuiClient();
-    const account = useCurrentAccount();
 
     const [digest, setDigest] = useState('');
     const [packageAddress, setPackageAddress] = useState<string>("");
     const [packageContract, setPackageContract] = useState<MoveModule>({} as MoveModule);
 
+    const [deploying, setDeploying] = useState<boolean>(false);
     useEffect(() => {
         (async () => {
             if (!digest) {
@@ -41,8 +42,23 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
     }, [digest])
 
     const handleDeploy = async () => {
-        console.log("Deploying contract...")
+        try {
+            setDeploying(true)
+            await doDeploy();
+        } catch (e: any) {
+            if (e.message === "Invalid Sui address") {
+                e.message === "Invalid Sui address, Please connect to a valid Sui network"
+            }
+            logger.error(e.message || "Error deploying contract")
 
+            console.error(e)
+        } finally {
+            setDeploying(false)
+        }
+    }
+
+    const doDeploy = async () => {
+        logger.info("Deploying contract...")
         const tx = new Transaction();
         const [upgradeCap] = await tx.publish({
             modules: output.modules,
@@ -52,38 +68,28 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
 
         signAndExecuteTransaction({ transaction: tx, chain: 'sui:devnet', }, {
             onSuccess: async (result) => {
-                console.log('executed transaction', result);
+                // Setting digest
                 setDigest(result.digest);
+                logger.info(`Digest: ${result.digest}`)
+
+                // Fetching package
                 const data = await getPackageByDigest(result.digest);
                 setPackageAddress(data?.packageId || "")
+                logger.success(`Package deploy with id: ${data?.packageId || ""}`)
+
+                // Fetching package ABI
+                if (data?.packageId) {
+                    const data = await getNormalizedMoveModulesByPackage(packageAddress)
+                    setPackageContract(data);
+                }
             },
         });
     }
 
-    const loadObject = async () => {
+    const handleLoadPackage = async () => {
         try {
-            const chains = await client.getChainIdentifier();
-            console.log(chains, parseInt(chains, 16))
-            const data: MoveModule = await client.call('sui_getNormalizedMoveModulesByPackage', [packageAddress]);
-
-            const keys = Object.keys(data)
-            console.log(data)
+            const data = await getNormalizedMoveModulesByPackage(packageAddress)
             setPackageContract(data);
-            // const response = await fetch(`https://fullnode.devnet.sui.io/`, {
-            //     method: 'POST',
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     body: JSON.stringify({
-            //         jsonrpc: '2.0',
-            //         id: 1,
-            //         method: 'sui_getNormalizedMoveModulesByPackage',
-            //         params: [packageAddress],
-            //     }),
-            // });
-
-            // const data = await response.json();
-            // console.log(data)
         } catch (e) {
             logger.error("Error loading object")
             console.error(e)
@@ -115,39 +121,34 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
         }
     }
 
-    const parseArgs = (pkg: string, abi: SuiMoveNormalizedFunction) => {
+    const parseArgs = (packageName: string, abi: SuiMoveNormalizedFunction) => {
         const params: { index: number, type: string }[] = []
         abi.parameters.forEach((param, index) => {
             if (typeof param.valueOf() === "string") {
-                const data = param.valueOf() as TypeSingle
-                params.push({
-                    index,
-                    type: data,
-                })
+                params.push({ index, type: param.valueOf() as TypeSingle, })
+                return;
             }
 
-            if (param.valueOf().hasOwnProperty("MutableReference")) {
-                const data = ((param.valueOf() as any).MutableReference as any).Struct as TypeStruct;
+            const value = param.valueOf() as any;
+            if (value.hasOwnProperty("MutableReference")) {
+                const data = value.MutableReference.Struct as TypeStruct;
 
-                if (data.module === "tx_context") {
-                } else if (data.module === pkg) {
-                    params.push({
-                        index,
-                        type: "module",
-                    })
+                // Note we are skipping the tx_context
+                if (data.module === packageName) {
+                    params.push({ index, type: "module", })
                 }
+                return;
             }
 
-            if (param.valueOf().hasOwnProperty("Reference")) {
-                const data = ((param.valueOf() as any).Reference as any).Struct as TypeStruct;
+            if (value.hasOwnProperty("Reference")) {
+                const data = value.Reference.Struct as TypeStruct;
 
-                if (data.module === "tx_context") {
-                } else if (data.module === pkg) {
-                    params.push({
-                        index,
-                        type: "module",
-                    })
+                // Note we are skipping the tx_context
+                if (data.module === packageName) {
+                    params.push({ index, type: "module", })
                 }
+                return;
+
             }
         })
 
@@ -156,38 +157,54 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
 
     const [blockResponse, setBlockResponse] = useState<{ [key: string]: SuiTransactionBlockResponse }>({} as any)
 
-    const invokeContract = async (pkg: string, method: string, abi: SuiMoveNormalizedFunction) => {
+    const handleInvoke = async (pkg: string, method: string, abi: SuiMoveNormalizedFunction) => {
+        try {
+            await doInvoke(pkg, method, abi)
+        } catch (e) {
+            logger.error("Error invoking contract")
+            console.error(e)
+        }
+    }
+
+    const doInvoke = async (pkg: string, method: string, abi: SuiMoveNormalizedFunction) => {
         const target = `${packageAddress}::${pkg}::${method}`;
         const tx = new Transaction();
 
         const params = contractArguments[target] || []
-        // const args = Object.keys(params).map(key => params[key]);
         const args: TransactionArgument[] = []
-        const inputs = parseArgs(pkg, abi)
-        inputs.forEach((input, index) => {
-            console.log(input, params[index])
-            if (input.type === "module") {
-                args.push(tx.object(params[index]))
-            } else if (input.type === "U8") {
-                args.push(tx.pure.u8(params[index]))
-            } else if (input.type === "U16") {
-                args.push(tx.pure.u16(params[index]))
-            } else if (input.type === "U32") {
-                args.push(tx.pure.u32(params[index]))
-            } else if (input.type === "U64") {
-                args.push(tx.pure.u64(params[index]))
-            } else if (input.type === "U128") {
-                args.push(tx.pure.u128(params[index]))
-            }
-        })
-
-        console.log(target, args)
+        parseArgs(pkg, abi)
+            .forEach((input, index) => {
+                // console.log(input, params[index])
+                switch (input.type) {
+                    case "module":
+                        args.push(tx.object(params[index]));
+                        break;
+                    case "U8":
+                        args.push(tx.pure.u8(params[index]));
+                        break;
+                    case "U16":
+                        args.push(tx.pure.u16(params[index]));
+                        break;
+                    case "U32":
+                        args.push(tx.pure.u32(params[index]));
+                        break;
+                    case "U64":
+                        args.push(tx.pure.u64(params[index]));
+                        break;
+                    case "U128":
+                        args.push(tx.pure.u128(params[index]));
+                        break;
+                    default:
+                        break;
+                }
+            })
 
         tx.moveCall({
             arguments: args,
             target,
         });
 
+        logger.info(`Invoking contract: ${target}`)
         signAndExecuteTransaction({ transaction: tx, }, {
             onSuccess: async ({ digest }) => {
                 const tx = await client
@@ -199,7 +216,10 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                     })
                 const objectId = tx.effects?.created?.[0]?.reference?.objectId;
 
-                console.log(objectId, tx)
+                if (objectId) {
+                    logger.info(`Object Created: ${objectId}`)
+                }
+
                 const results = { ...blockResponse }
                 results[method] = tx
                 setBlockResponse(results)
@@ -207,6 +227,7 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
             },
             onError: (error) => {
                 console.error(error)
+                logger.error(`Invoking contract: ${target}`)
             }
         });
     }
@@ -235,25 +256,23 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
 
 
     return <div>
-        <ConnectButton />
-
-        {digest && <div>
-            Digest: {digest}
-        </div>}
+        <div className="flex items-center justify-center my-2">
+            <ConnectButton />
+        </div>
 
         <div className="flex">
             <Button
                 size="sm"
                 onClick={handleDeploy}
                 variant="default"
-                disabled={!output.modules}
+                disabled={!output.modules && deploying}
             >
-                Deploy
+                {deploying ? "Deploying ..." : "Deploy"}
             </Button>
 
             <Button
                 size="sm"
-                onClick={loadObject}
+                onClick={handleLoadPackage}
                 variant="default"
                 disabled={!packageAddress}
             >
@@ -284,19 +303,14 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                         return <div key={pkg}>
                             {Object.entries(value.exposedFunctions).map(([method, abi]) => {
                                 return <div key={method}>
-                                    <Button
-                                        size="sm"
-                                        disabled={false}
-                                        onClick={() => invokeContract(pkg, method, abi)}
+                                    <Button size="sm" disabled={false}
+                                        onClick={() => handleInvoke(pkg, method, abi)}
                                     >
                                         {`${method} ( ${abi.parameters && abi.parameters.length > 0 ? "..." : ""} )`}
                                     </Button>
                                     {/* {JSON.stringify(abi)} */}
                                     {parseArgs(pkg, abi).map((param, index) => {
                                         return <div key={index} className="my-2">
-                                            {/* {<RenderArg module={pkg} param={param} onChange={(e) => handleArgumentChange(
-                                                pkg, method, index, e.target.value
-                                            )} />} */}
                                             <Input placeholder={param.type} onChange={(e) => handleArgumentChange(
                                                 pkg, method, index, e.target.value
                                             )} />
@@ -314,22 +328,4 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                 : <div>Deploy or Load Package to interact</div>}
         </div>
     </div>
-}
-
-interface MoveModule {
-    [key: string]: SuiMoveNormalizedModule;
-}
-
-type TypeSingle = 'Bool' | 'U8' | 'U16' | 'U32' | 'U64' | 'U128' | 'U256' | 'Address' | 'Signer';
-interface TypeStruct {
-    address: string;
-    module: string;
-    name: string;
-    typeArguments: SuiMoveNormalizedType[];
-}
-
-export interface RenderArgProps
-    extends React.InputHTMLAttributes<HTMLInputElement> {
-    param: SuiMoveNormalizedType,
-    module: string,
 }

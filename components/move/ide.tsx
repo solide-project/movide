@@ -30,6 +30,8 @@ import { OBJECT_KEY } from "@/components/move/navbar/nav-item-object"
 import { LoadObject } from "@/components/move/object/load-object"
 import { CompileInput, parseInput } from "@/lib/move/input"
 import { CompilerOutput } from "@/lib/move/compiler"
+import { CompileError } from "@/lib/move/error"
+import { QueryHelper } from "@/lib/core"
 
 export const hexToDecimal = (hex: string): number => parseInt(hex, 16)
 
@@ -56,8 +58,6 @@ export function MoveIDE({
     version,
     bytecodeId,
 }: MoveIDEProps) {
-    const [input, setInput] = React.useState<any>({})
-
     const fs = useFileSystem()
     const ide = useEditor()
     const logger = useLogger()
@@ -71,10 +71,8 @@ export function MoveIDE({
             setNavItemActive(FILE_KEY, true)
             setNavItemActive(CONSOLE_KEY, true)
 
-            console.log("content", content)
             let input: CompileInput = parseInput(content)
-            console.log("input", input)
-            const entryFile = await fs.initAndFoundEntry(input.sources, title || "")
+            const entryFile = await fs.initAndFoundEntry(input.sources, title || "Move.toml")
             if (entryFile) {
                 ide.selectFile(entryFile)
             }
@@ -105,12 +103,18 @@ export function MoveIDE({
     const doCompile = async () => {
         console.log("TODO Compiling ...")
 
+        let queryBuilder = new QueryHelper()
+        if (move.tomlPath) {
+            queryBuilder = queryBuilder
+                .addParam("toml", move.tomlPath)
+        }
+
         const sources = fs.generateSources()
         const source: any = { sources }
         const body = { input: source }
         console.log(body)
 
-        const response = await fetch(`/api/compile`, {
+        const response = await fetch(`/api/compile${queryBuilder.build()}`, {
             method: "POST",
             // body: formData,
             body: JSON.stringify(body),
@@ -118,13 +122,14 @@ export function MoveIDE({
 
 
         if (!response.ok) {
-            const data = (await response.json()) as any // CompileError
-
+            const data = (await response.json()) as CompileError
+            console.log(data)
+            move.setErrors(data)
             logger.error(`Compiled with ${data.details.length} errors.`)
-            // setCompilingState({ errors: data, })
             return
         }
 
+        move.setErrors({} as CompileError)
         const data = await response.json()
         console.log(data)
         move.setOutput(data.output as CompilerOutput)

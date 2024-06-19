@@ -2,11 +2,14 @@ import path from "path"
 import fs from "fs"
 import { NextRequest, NextResponse } from "next/server"
 import { compile } from "@/lib/move/compiler";
+import stripAnsi from "strip-ansi";
 
 export async function POST(request: NextRequest) {
   if (!process.env.PROJECT_PATH) {
     return NextResponseError("Server Side Error");
   }
+
+  const toml = request.nextUrl.searchParams.get("toml") || ""
 
   const { input } = await request.json();
   const { sources } = input;
@@ -34,8 +37,8 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const output = await compile(mainDir);
-    console.log("output", output);
+    const output = await compile(mainDir, toml);
+    // console.log("output", output);
 
     fs.rmSync(mainDir, { recursive: true });
 
@@ -46,7 +49,11 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.log('error', error)
-    const errorMessage: string = error.stdout;
+    let errorMessage: string = stripAnsi(error.stderr || error.stdout)
+
+    if (errorMessage.includes("Unable to find package manifest in")) {
+      errorMessage = "Unable to find package (Move.toml) manifest in the project directory. This occurs because the Move.toml isn't in root directory. Please set the path in Settings"
+    }
 
     fs.rmSync(mainDir, { recursive: true });
 

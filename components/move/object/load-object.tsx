@@ -26,7 +26,6 @@ export function LoadObject({ className }: LoadObjectProps) {
 
     const [objects, setObjects] = useState<{ [key: string]: SuiObjectData }>({} as { [key: string]: SuiObjectData })
 
-
     const doObjectLoad = async () => {
         logger.info(`Loading object: ${objectId}`)
         const results: { data: SuiObjectData } = await client.call('sui_getObject', [objectId,
@@ -75,12 +74,12 @@ export function LoadObject({ className }: LoadObjectProps) {
                 variant="default"
                 disabled={!objectId || loadingObject}
             >
-                {loadingObject ? "Loading ..." : "Import Object"}
+                {loadingObject ? "Loading ..." : "Import"}
             </Button>
 
             <Input
                 className="h-9 rounded-md px-3"
-                placeholder="Package Address"
+                placeholder="Object ID"
                 value={objectId}
                 onChange={(e) => setObjectId(e.target.value)}
             />
