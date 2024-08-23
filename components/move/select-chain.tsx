@@ -71,9 +71,9 @@ export function SelectChain({ handleOnChange }: SelectChainProps) {
                 <Command>
                     <CommandInput placeholder="Search chain..." />
                     <CommandEmpty>No chain found.</CommandEmpty>
-                    <ScrollArea className="max-h-[256px] overflow-auto">
+                    <ScrollArea>
                         <CommandGroup>
-                            <CommandList>
+                            <CommandList className="max-h-[256px] overflow-auto">
                                 {chainList && chainList.map((framework) => (
                                     <CommandItem
                                         key={framework.value}
