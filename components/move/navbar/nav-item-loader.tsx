@@ -84,7 +84,7 @@ export function NavItemLoader({
                     <div className="flex flex-col items-center justify-center gap-4">
                         <Image src="/_assets/solide-dark.svg" alt="logo" height={96} width={96} />
                         <div className="font-heading my-2 text-center text-3xl font-bold sm:text-5xl md:text-6xl lg:text-7xl">
-                            Solide
+                            Movide
                         </div>
                     </div>
                     {(errorMessage || message) && (
