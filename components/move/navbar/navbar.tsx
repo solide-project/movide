@@ -14,9 +14,9 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { MoveSettings } from "@/components/move/settings/settings"
-import { NavItemDownloader } from "@/components/move/navbar/nav-item-downloader"
 import { SelectedNetwork } from "@/components/move/navbar/selected-network"
 import { NavItemObject } from "@/components/move/navbar/nav-item-object"
+import { NavItemLoader } from "./nav-item-loader"
 
 interface MoveNavBarProps extends React.HTMLAttributes<HTMLDivElement> {
     url: string,
@@ -44,15 +44,11 @@ export function MoveNavBar({
             <NavTooltipItem tooltip="Console">
                 <NavItemConsole />
             </NavTooltipItem>
-            <NavTooltipItem tooltip="Source">
-                <NavItemContent url={url} />
-            </NavTooltipItem>
-            <NavTooltipItem tooltip="Download Smart Contract">
-                <NavItemDownloader />
+            <NavTooltipItem tooltip="Load New Contract">
+                <NavItemLoader />
             </NavTooltipItem>
 
             <div className="mt-auto flex flex-col items-center gap-2">
-                {/* {bytecodeId && <NavItemBytecode id={bytecodeId} />} */}
                 <SelectedNetwork />
                 <NavItemTheme />
                 <MoveSettings />

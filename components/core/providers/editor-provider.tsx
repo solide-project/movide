@@ -4,9 +4,6 @@ import React, { createContext, useContext, useState } from "react"
 
 import { VFSFile } from "@/lib/core"
 
-/**
- * VFS Provider to handle files and folders in the IDE
- */
 export const EditorProvider = ({ children }: EditorProviderProps) => {
   const [file, setFile] = useState<VFSFile | undefined>()
 

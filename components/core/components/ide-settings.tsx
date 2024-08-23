@@ -6,15 +6,12 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-import { Title } from "./title"
-
 interface IDESettingsProps extends React.HTMLAttributes<HTMLDivElement> {}
 
-export function IDESettings({ children, className }: IDESettingsProps) {
+export function IDESettings({ children }: IDESettingsProps) {
   return (
     <Dialog>
       <DialogTrigger
@@ -24,7 +21,7 @@ export function IDESettings({ children, className }: IDESettingsProps) {
       </DialogTrigger>
       <DialogContent className="overflow-y-auto border-none bg-grayscale-025 shadow-none">
         <DialogHeader>
-          <Title text="Settings" />
+          <div className="text-center text-xl font-semibold">Settings</div>
           {children}
         </DialogHeader>
       </DialogContent>

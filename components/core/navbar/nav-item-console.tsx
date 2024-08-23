@@ -8,7 +8,7 @@ import {
   useNav,
 } from "@/components/core/providers/navbar-provider"
 
-interface NavItemConsoleProps extends React.HTMLAttributes<HTMLButtonElement> { }
+interface NavItemConsoleProps extends React.HTMLAttributes<HTMLButtonElement> {}
 
 export function NavItemConsole({ ...props }: NavItemConsoleProps) {
   const { isNavItemActive, setNavItemActive } = useNav()
@@ -18,15 +18,17 @@ export function NavItemConsole({ ...props }: NavItemConsoleProps) {
     props.onClick && props.onClick(event)
   }
 
-  return <Button
-    className="cursor-pointer border-0 hover:bg-grayscale-100"
-    size="icon"
-    variant="ghost"
-    onClick={handleOnClick}
-    {...props}
-  >
-    <Gamepad2
-      className={isNavItemActive(NAV_KEY) ? "" : "text-grayscale-250"}
-    />
-  </Button>
+  return (
+    <Button
+      className="cursor-pointer border-0 hover:bg-grayscale-100"
+      size="icon"
+      variant="ghost"
+      onClick={handleOnClick}
+      {...props}
+    >
+      <Gamepad2
+        className={isNavItemActive(NAV_KEY) ? "" : "text-grayscale-250"}
+      />
+    </Button>
+  )
 }

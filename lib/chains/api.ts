@@ -5,6 +5,7 @@ const data: { [key: string]: string } = {
     [ChainID.SUI_DEVNET]: "https://api.welldonestudio.io/compiler/sui/verifications",
     [ChainID.SUI_TESTNET]: "https://api.welldonestudio.io/compiler/sui/verifications",
     [ChainID.MOVEMENT_DEVNET]: "",
+    [ChainID.MOVEMENT_BAKU]: "",
 }
 
 export const getAPI = (network: string): string => data[network] || ""
