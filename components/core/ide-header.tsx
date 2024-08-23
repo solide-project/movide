@@ -1,8 +1,10 @@
+import path from "path"
+
 import { useEditor } from "./providers/editor-provider"
 
 interface IDEHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
 
-export function IDEHeader({  }: IDEHeaderProps) {
+export function IDEHeader({}: IDEHeaderProps) {
   const editor = useEditor()
 
   return (
@@ -11,7 +13,7 @@ export function IDEHeader({  }: IDEHeaderProps) {
       style={{ height: "5vh" }}
     >
       <span className="rounded-md border bg-grayscale-025 px-16 py-1">
-        {editor.file?.filePath || "Contract.sol"}
+        {path.parse(editor.file?.filePath || "Contract.sol").base}
       </span>
     </div>
   )

@@ -2,7 +2,6 @@
 
 import { NavItemCode } from "./nav-item-code"
 import { NavItemContent } from "./nav-item-content"
-import { NavItemDownloader } from "./nav-item-downloader"
 import { NavItemEditor } from "./nav-item-editor"
 import { NavItemFile } from "./nav-item-file"
 import { NavItemTheme } from "./nav-item-theme"
@@ -19,10 +18,8 @@ export function NavBar({ url }: NavBarProps) {
       <NavItemCode />
       <NavItemEditor />
       <NavItemContent url={url} />
-      <NavItemDownloader />
 
       <div className="mt-auto flex flex-col items-center gap-2">
-        <NavItemTheme />
         <NavItemTheme />
       </div>
     </div>
