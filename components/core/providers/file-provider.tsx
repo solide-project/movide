@@ -1,10 +1,10 @@
 "use client"
 
+import path from "path"
 import React, { createContext, useContext, useState } from "react"
 
 import { useVirtualFileSystem } from "@/lib/core/file-system/hook"
 import { Sources, VFSFile, VFSNode } from "@/lib/core/file-system/interfaces"
-import path from "path"
 
 export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
   const vfs = useVirtualFileSystem()
@@ -60,16 +60,21 @@ export const FileContext = createContext({
   vfs: {
     vfs: {} as VFSNode,
     ls: (filePath: string) => [] as string[],
-    mkdir: (filePath: string) => { },
-    touch: (filePath: string, content?: string) => { },
-    cat: (filePath: string) => { return {} as any },
-    pack: (filePath?: string) => { },
-    rm: (filePath: string) => { },
-    mv: (oldPath: string, newPath: string) => { },
-    clear: () => { },
+    mkdir: (filePath: string) => {},
+    touch: (filePath: string, content?: string) => {},
+    cat: (filePath: string) => {
+      return {} as any
+    },
+    pack: (filePath?: string) => {},
+    rm: (filePath: string) => {},
+    mv: (oldPath: string, newPath: string) => {},
+    clear: () => {},
   },
-  init: (sources: { [key: string]: { content: string } }) => { },
-  initAndFoundEntry: async (sources: { [key: string]: { content: string } }, entry: string): Promise<VFSFile | undefined> => undefined,
+  init: (sources: { [key: string]: { content: string } }) => {},
+  initAndFoundEntry: async (
+    sources: { [key: string]: { content: string } },
+    entry: string
+  ): Promise<VFSFile | undefined> => undefined,
   generateSources: (): Sources => ({}),
 })
 

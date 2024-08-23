@@ -17,18 +17,11 @@ export interface SolideProvidersProps {
 }
 
 const { networkConfig } = createNetworkConfig({
-    testnet: {
-        url: getFullnodeUrl('testnet')
-    },
-    devnet: {
-        url: getFullnodeUrl('devnet')
-    },
-    mainnet: {
-        url: getFullnodeUrl('mainnet')
-    },
-    m2: {
-        url: "https://sui.devnet.m2.movementlabs.xyz:443",
-    },
+    testnet: { url: getFullnodeUrl('testnet') },
+    devnet: { url: getFullnodeUrl('devnet') },
+    mainnet: { url: getFullnodeUrl('mainnet') },
+    m2: { url: 'https://devnet.baku.movementlabs.xyz', language: 'sui' },
+    baku: { url: "https://devnet.baku.movementlabs.xyz", language: 'sui' }
 });
 const queryClient = new QueryClient();
 
@@ -40,7 +33,7 @@ export function SolideProviders({ children, ...props }: SolideProvidersProps) {
         disableTransitionOnChange
     >
         <QueryClientProvider client={queryClient}>
-            <SuiClientProvider networks={networkConfig} defaultNetwork="m2">
+            <SuiClientProvider networks={networkConfig} defaultNetwork="baku">
                 <WalletProvider>
                     <LoggerProvider>
                         <FileSystemProvider>

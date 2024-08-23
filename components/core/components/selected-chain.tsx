@@ -19,21 +19,23 @@ interface SelectedChainProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export function SelectedChain({ name, src }: SelectedChainProps) {
-  return <HoverCard openDelay={0}>
-    <HoverCardTrigger>
-      <Image
-        width={50}
-        height={50}
-        alt={"Network Icon"}
-        loader={() => src}
-        src={src}
-        // src={getIconByChainId(chainId.toString())}
-        className={cn(
-          buttonVariants({ size: "icon", variant: "none" }),
-          "h-5 w-5 cursor-pointer sm:h-8 sm:w-8"
-        )}
-      />
-    </HoverCardTrigger>
-    <HoverCardContent>{name || "Unsupported Network"}</HoverCardContent>
-  </HoverCard>
+  return (
+    <HoverCard openDelay={0}>
+      <HoverCardTrigger>
+        <Image
+          width={50}
+          height={50}
+          alt={"Network Icon"}
+          loader={() => src}
+          src={src}
+          // src={getIconByChainId(chainId.toString())}
+          className={cn(
+            buttonVariants({ size: "icon", variant: "none" }),
+            "size-5 cursor-pointer sm:size-8"
+          )}
+        />
+      </HoverCardTrigger>
+      <HoverCardContent>{name || "Unsupported Network"}</HoverCardContent>
+    </HoverCard>
+  )
 }

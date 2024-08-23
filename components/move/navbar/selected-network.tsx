@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import * as React from "react"
-import { useSuiClientContext } from "@mysten/dapp-kit";
+import { useSuiClient, useSuiClientContext } from "@mysten/dapp-kit";
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
     HoverCard,
@@ -18,6 +18,14 @@ interface SelectedNetworkProps extends React.HTMLAttributes<HTMLDivElement> { }
 // const chains = await client.getChainIdentifier();
 // console.log(chains, parseInt(chains, 16))
 export function SelectedNetwork({ }: SelectedNetworkProps) {
+    // const client = useSuiClient();
+    // React.useEffect(() => {
+    //     (async () => {
+    //         const chains = await client.getChainIdentifier();
+    //         console.log("Chain ID", chains, parseInt(chains, 16))
+    //     })()
+    // }, [])
+
     const ctx = useSuiClientContext();
 
     const getNetworkName = (network: string) => {
@@ -30,6 +38,8 @@ export function SelectedNetwork({ }: SelectedNetworkProps) {
                 return "Sui Mainnet";
             case "m2":
                 return "Movement M2";
+            case "baku":
+                return "Movement Baku";
             default:
                 return "Unsupported Network";
         }
@@ -38,6 +48,7 @@ export function SelectedNetwork({ }: SelectedNetworkProps) {
     const getIconById = (network: string) => {
         switch (network) {
             case "m2":
+            case "baku":
                 return "/icons/movement.svg";
             default:
                 return "/icons/sui.svg";

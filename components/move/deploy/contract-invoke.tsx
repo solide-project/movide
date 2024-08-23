@@ -1,32 +1,41 @@
 import { Button } from "@/components/ui/button";
 import {
     ConnectButton,
-    useCurrentAccount,
-    useSignAndExecuteTransaction,
-    useSuiClient,
-    useSuiClientContext,
-    useSwitchAccount
+    useSignAndExecuteTransaction
 } from "@mysten/dapp-kit";
 import { Transaction, TransactionArgument } from "@mysten/sui/transactions";
 import { useEffect, useState } from "react";
 import { useMove } from "../move-provider";
 import { Input } from "@/components/ui/input";
 import { useLogger } from "@/components/core/providers/logger-provider";
-import { SuiMoveNormalizedFunction, SuiMoveNormalizedModule, SuiMoveNormalizedType, SuiObjectChange, SuiTransactionBlock, SuiTransactionBlockResponse } from "@mysten/sui/client";
+import { SuiMoveNormalizedFunction, SuiTransactionBlockResponse } from "@mysten/sui/client";
 import { useSuiHooks } from "@/lib/move/hook";
 import { MoveModule, TypeSingle, TypeStruct } from "@/lib/move/interface";
+import { useMoveHook } from "./hook-move";
+import { CollapsibleChevron } from "@/components/core/components/collapsible-chevron";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Title } from "@/components/core/components/title";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { getObjectExplorer } from "@/lib/chains";
+import { getDigestExplorer } from "@/lib/chains/explorer";
 
 interface ContractInvokeProps extends React.HTMLAttributes<HTMLDivElement> { }
 
 export function ContractInvoke({ className }: ContractInvokeProps) {
     const { output } = useMove();
     const logger = useLogger();
+    const moveHook = useMoveHook();
     const { client, account, getNormalizedMoveModulesByPackage } = useSuiHooks();
     const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
     const [digest, setDigest] = useState('');
     const [packageAddress, setPackageAddress] = useState<string>("");
-    const [packageContract, setPackageContract] = useState<MoveModule>({} as MoveModule);
 
     const [deploying, setDeploying] = useState<boolean>(false);
     useEffect(() => {
@@ -66,30 +75,50 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
         });
         tx.transferObjects([upgradeCap], account?.address || "")
 
-        signAndExecuteTransaction({ transaction: tx, chain: 'sui:devnet', }, {
+        signAndExecuteTransaction({
+            transaction: tx,
+            //chain: 'sui:baku',
+        }, {
             onSuccess: async (result) => {
-                // Setting digest
                 setDigest(result.digest);
-                logger.info(`Digest: ${result.digest}`)
+
+                const chains = await client.getChainIdentifier();
+                const chainId = parseInt(chains, 16).toString()
+
+                logger.info(<div className="flex gap-2">Transaction Digest: {" "}
+                    <a className="underline" href={getDigestExplorer(chainId, result.digest)} target="_blank">
+                        {result.digest}
+                    </a>
+                </div>)
 
                 // Fetching package
                 const data = await getPackageByDigest(result.digest);
                 setPackageAddress(data?.packageId || "")
-                logger.success(`Package deploy with id: ${data?.packageId || ""}`)
+                logger.success(`Contract deployed at: ${data?.packageId || ""}`)
 
                 // Fetching package ABI
                 if (data?.packageId) {
-                    const data = await getNormalizedMoveModulesByPackage(packageAddress)
-                    setPackageContract(data);
+                    const packageAddress = data?.packageId
+                    const pkg = await getNormalizedMoveModulesByPackage(packageAddress)
+                    if (pkg) {
+                        moveHook.setContract(packageAddress, pkg)
+                    }
                 }
             },
+            onError: async (result) => {
+                console.log(result)
+            }
         });
     }
 
     const handleLoadPackage = async () => {
         try {
-            const data = await getNormalizedMoveModulesByPackage(packageAddress)
-            setPackageContract(data);
+            const packageMove = await getNormalizedMoveModulesByPackage(packageAddress)
+            if (packageMove) {
+                logger.success(`Contract deployed at ${packageAddress}`)
+                moveHook.setContract(packageAddress, packageMove)
+                setPackageAddress("")
+            }
         } catch (e) {
             logger.error("Error loading object")
             console.error(e)
@@ -156,23 +185,37 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
     }
 
     const [blockResponse, setBlockResponse] = useState<{ [key: string]: SuiTransactionBlockResponse }>({} as any)
+    const [isInvoking, setIsInvoking] = useState<boolean>(false)
 
-    const handleInvoke = async (pkg: string, method: string, abi: SuiMoveNormalizedFunction) => {
+    const handleInvoke = async (packageId: string, module: string,
+        method: string, abi: SuiMoveNormalizedFunction) => {
         try {
-            await doInvoke(pkg, method, abi)
+            setIsInvoking(true)
+            await doInvoke(packageId, module, method, abi)
         } catch (e) {
             logger.error("Error invoking contract")
             console.error(e)
+
+            await postInvoke()
         }
+        // finally {
+        //     await postInvoke()
+        // }
     }
 
-    const doInvoke = async (pkg: string, method: string, abi: SuiMoveNormalizedFunction) => {
-        const target = `${packageAddress}::${pkg}::${method}`;
+    const postInvoke = async () => {
+        await removeSelectPackage()
+        setIsInvoking(false)
+    }
+
+    const doInvoke = async (packageId: string, module: string,
+        method: string, abi: SuiMoveNormalizedFunction) => {
+        const target = `${packageId}::${module}::${method}`;
         const tx = new Transaction();
 
         const params = contractArguments[target] || []
         const args: TransactionArgument[] = []
-        parseArgs(pkg, abi)
+        parseArgs(module, abi)
             .forEach((input, index) => {
                 // console.log(input, params[index])
                 switch (input.type) {
@@ -204,7 +247,11 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
             target,
         });
 
-        logger.info(`Invoking contract: ${target}`)
+        logger.info(
+            <div className="flex gap-2">
+                <ArrowRight size={18} /> <div>{`${packageId.slice(0, 8)}...${packageAddress.slice(-5)}::${module}::${method}`}</div>
+            </div>)
+
         signAndExecuteTransaction({ transaction: tx, }, {
             onSuccess: async ({ digest }) => {
                 const tx = await client
@@ -214,35 +261,53 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                             showEffects: true,
                         },
                     })
-                const objectId = tx.effects?.created?.[0]?.reference?.objectId;
 
+                console.log(tx)
+                const chains = await client.getChainIdentifier();
+                const chainId = parseInt(chains, 16).toString()
+
+                const objectId = tx.effects?.created?.[0]?.reference?.objectId;
                 if (objectId) {
-                    logger.info(`Object Created: ${objectId}`)
+                    logger.info(<div className="flex gap-2">
+                        <ArrowLeft size={18} />Objected Created: {" "}
+                        <a className="underline" href={getObjectExplorer(chainId, objectId)} target="_blank">
+                            {objectId}
+                        </a>
+                    </div>)
                 }
 
                 const results = { ...blockResponse }
                 results[method] = tx
                 setBlockResponse(results)
-                logger.info(`Transaction Digest: ${digest}`)
+                logger.info(<div className="flex gap-2">Transaction Digest: {" "}
+                    <a className="underline" href={getDigestExplorer(chainId, digest)} target="_blank">
+                        {digest}
+                    </a>
+                </div>)
+
+                postInvoke()
             },
             onError: (error) => {
-                console.error(error)
-                logger.error(`Invoking contract: ${target}`)
+                console.error(error.message)
+                logger.error(error.message)
+
+                postInvoke()
             }
         });
     }
 
     const [contractArguments, setContractArguments] = useState<{
-        [key: string]: { [key: string]: any }
+        [target: string]: { [parameter: string]: any }
     }>({})
 
     const handleArgumentChange = (
-        pkg: string,
+        packageId: string,
+        module: string,
         method: string,
         name: number,
         value: string
     ) => {
-        const target = `${packageAddress}::${pkg}::${method}`;
+        const target = `${packageId}::${module}::${method}`;
 
         const newArgs = { ...contractArguments }
 
@@ -254,13 +319,45 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
         setContractArguments(newArgs)
     }
 
+    /**
+     * Give something like 0x12345...::counter::create
+     * contractAddress = 0x12345...
+     * module = counter
+     * method = create
+     */
+    const [selectedContractAddress, setSelectedContractAddress] =
+        useState<string>("")
+    const [selectedModule, setSelectedModule] =
+        useState<string>("")
+    const [selectedAbiMethod, setSelectedAbiMethod] =
+        useState<string>("")
+    const [selectedAbiParameter, setSelectedAbiParameter] =
+        useState<SuiMoveNormalizedFunction | null>(null)
+
+    const selectPackage = async (packageId: string, module: string, method: string, abi: SuiMoveNormalizedFunction) => {
+        setSelectedContractAddress(packageId)
+        setSelectedModule(module)
+        setSelectedAbiMethod(method)
+        setSelectedAbiParameter(abi)
+    }
+
+    const removeSelectPackage = async () => {
+        setSelectedContractAddress("")
+        setSelectedModule("")
+        setSelectedAbiMethod("")
+        setSelectedAbiParameter(null)
+    }
+
+    const handleRemoveContract = async (key: string) => {
+        moveHook.removeContract(key)
+    }
 
     return <div>
         <div className="flex items-center justify-center my-2">
             <ConnectButton />
         </div>
 
-        <div className="flex">
+        <div className="flex gap-2 my-2">
             <Button
                 size="sm"
                 onClick={handleDeploy}
@@ -296,7 +393,67 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
             onChange={(e) => setPackageAddress(e.target.value)}
         />
 
-        <div>
+        <Title text="Deployed Contracts" />
+        {Object.entries(moveHook.contracts).map(([packageId, val], index) => {
+            return (
+                <CollapsibleChevron
+                    key={index}
+                    name={packageId}
+                    onClosed={() => handleRemoveContract(packageId)}
+                >
+                    <div>
+                        {Object.entries(val).map(([module, value]) => {
+                            return <div className="flex flex-wrap gap-2" key={module}>
+                                {Object.entries(value.exposedFunctions).map(([method, abi]) => {
+                                    return <Button key={method}
+                                        size="sm" disabled={false}
+                                        onClick={() => selectPackage(packageId, module, method, abi)}
+                                    >
+                                        {method}
+                                    </Button>
+                                })}
+                            </div>
+                        })}
+                    </div>
+                </CollapsibleChevron>
+            )
+        })}
+
+        <Dialog
+            open={!!selectedAbiParameter}
+            onOpenChange={removeSelectPackage}
+        >
+            <DialogContent className="max-h-[80vh] overflow-auto">
+                <DialogHeader>
+                    <DialogTitle>
+                        {selectedAbiMethod}
+                    </DialogTitle>
+                    <DialogDescription></DialogDescription>
+                </DialogHeader>
+
+                {selectedAbiParameter && selectedAbiMethod && (
+                    <>
+                        {parseArgs(selectedModule, selectedAbiParameter).map((param, index) => {
+                            return <div key={index} className="my-2">
+                                <Input placeholder={param.type} onChange={(e) => handleArgumentChange(
+                                    selectedContractAddress, selectedModule, selectedAbiMethod, index, e.target.value
+                                )} />
+                            </div>
+                        })}
+
+                        <Button onClick={() => handleInvoke(
+                            selectedContractAddress, selectedModule, selectedAbiMethod, selectedAbiParameter)}
+                            disabled={isInvoking}
+                        >
+                            {isInvoking
+                                ? "Invoking..." : "Invoke"}
+                        </Button>
+                    </>
+                )}
+            </DialogContent>
+        </Dialog>
+
+        {/* <div>
             {packageContract ?
                 <div>
                     {Object.entries(packageContract).map(([pkg, value]) => {
@@ -308,7 +465,6 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                                     >
                                         {`${method} ( ${abi.parameters && abi.parameters.length > 0 ? "..." : ""} )`}
                                     </Button>
-                                    {/* {JSON.stringify(abi)} */}
                                     {parseArgs(pkg, abi).map((param, index) => {
                                         return <div key={index} className="my-2">
                                             <Input placeholder={param.type} onChange={(e) => handleArgumentChange(
@@ -326,6 +482,6 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                     })}
                 </div>
                 : <div>Deploy or Load Package to interact</div>}
-        </div>
-    </div>
+        </div> */}
+    </div >
 }

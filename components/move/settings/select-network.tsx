@@ -46,7 +46,7 @@ export function SelectNetwork({ className }: SelectNetworkProps) {
             <Command>
                 <CommandInput placeholder="Search framework..." className="h-9" />
                 <CommandEmpty>No framework found.</CommandEmpty>
-                <ScrollArea className="h-[200px]">
+                <ScrollArea className="">
                     <CommandGroup>
                         <CommandList>
                             {Object.keys(ctx.networks || []).map((network: string, index: number) => (
