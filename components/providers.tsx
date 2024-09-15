@@ -18,6 +18,7 @@ export interface SolideProvidersProps {
 
 const { networkConfig } = createNetworkConfig({
     testnet: { url: getFullnodeUrl('testnet') },
+    // testnet: { url: "https://sui-testnet-endpoint.blockvision.org" },
     devnet: { url: getFullnodeUrl('devnet') },
     mainnet: { url: getFullnodeUrl('mainnet') },
     m2: { url: 'https://devnet.baku.movementlabs.xyz', language: 'sui' },
