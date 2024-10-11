@@ -1,11 +1,11 @@
 import { Metadata } from "next"
 import { Space_Grotesk } from "next/font/google"
-
 import { cn } from "@/lib/utils"
+import { SolideProviders } from "@/components/providers"
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 import "./globals.css"
 import '@mysten/dapp-kit/dist/index.css';
-import { SolideProviders } from "@/components/providers"
 
 export const metadata: Metadata = {
   title: {
@@ -41,6 +41,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <SolideProviders>
         {children}
       </SolideProviders>
-    </body >
+    </body>
+    <GoogleAnalytics gaId={process.env.GOOGLE_ANALYTICS || ""} />
   </html>
 }
