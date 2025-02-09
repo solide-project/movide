@@ -111,21 +111,21 @@ export function IDE({ defaultLanguage = "sol" }: IDEProps) {
     fs.vfs.touch(file.filePath, newValue)
   }
 
-  const handleSelectionChange = (event: any, editor: any) => {
-    const model = editor.getModel()
-    if (model) {
-      const selection = editor.getSelection()
-      if (selection && !selection.isEmpty()) {
-        const selectedText = model.getValueInRange(selection)
-        // console.log('Text is highlighted:', selectedText);
-        window.parent.postMessage(
-          { data: { selectedText }, target: "solide-highlight" } || "",
-          "https://dapp.solide0x.tech/" || "http://localhost:3001/"
-        )
-        // You can perform further actions here with the selected text
-      }
-    }
-  }
+  // const handleSelectionChange = (event: any, editor: any) => {
+  //   const model = editor.getModel()
+  //   if (model) {
+  //     const selection = editor.getSelection()
+  //     if (selection && !selection.isEmpty()) {
+  //       const selectedText = model.getValueInRange(selection)
+  //       // console.log('Text is highlighted:', selectedText);
+  //       window.parent.postMessage(
+  //         { data: { selectedText }, target: "solide-highlight" } || "",
+  //         "https://dapp.solide0x.tech/" || "http://localhost:3001/"
+  //       )
+  //       // You can perform further actions here with the selected text
+  //     }
+  //   }
+  // }
 
   const formatColor = (name: string) => {
     let color = window
@@ -153,9 +153,9 @@ export function IDE({ defaultLanguage = "sol" }: IDEProps) {
         //   console.log("Cursor position changed:", event.position)
         // })
 
-        editor.onDidChangeCursorSelection((event: any) =>
-          handleSelectionChange(event, editor)
-        )
+        // editor.onDidChangeCursorSelection((event: any) =>
+        //   handleSelectionChange(event, editor)
+        // )
 
         editor.addAction({
           id: "copilot",

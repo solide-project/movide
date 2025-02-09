@@ -66,6 +66,8 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
         }
     }
 
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
     const doDeploy = async () => {
         logger.info("Deploying contract...")
         const tx = new Transaction();
@@ -77,7 +79,6 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
 
         signAndExecuteTransaction({
             transaction: tx,
-            //chain: 'sui:baku',
         }, {
             onSuccess: async (result) => {
                 setDigest(result.digest);
@@ -92,22 +93,30 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
                 </div>)
 
                 // Fetching package
-                const data = await getPackageByDigest(result.digest);
-                setPackageAddress(data?.packageId || "")
-                logger.success(`Contract deployed at: ${data?.packageId || ""}`)
+                var data = await getPackageByDigest(result.digest);
+
+                if (!data?.packageId) {
+                    await delay(5000);
+                    data = await getPackageByDigest(packageAddress);
+                }
+
+                setPackageAddress(data?.packageId || result.digest)
 
                 // Fetching package ABI
                 if (data?.packageId) {
+                    logger.success(`Contract deployed at: ${data?.packageId || ""}`)
                     const packageAddress = data?.packageId
                     const pkg = await getNormalizedMoveModulesByPackage(packageAddress)
                     if (pkg) {
                         moveHook.setContract(packageAddress, pkg)
                     }
+                } else {
+                    logger.warn(`Contract Deployment Warning. Try loading the contract via its digest`)
                 }
             },
             onError: async (result) => {
                 console.log(result)
-                logger.error(`Contract Deployment Failed. Make sure you switch to the correct network in IDE Settings`)
+                logger.error(`Contract Deployment Failed. Make sure you switch to the correct network in IDE Settings or try loading the contract with digest`)
             }
         });
     }
@@ -146,7 +155,7 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
 
             return published.type === 'published' ? published : null;
         } catch (e: any) {
-            logger.error(e.message || "Error loading digest")
+            // logger.error(e.message || "Error loading digest")
             console.error(e)
         }
     }
@@ -353,6 +362,22 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
         moveHook.removeContract(key)
     }
 
+    const handlePackageByDigest = async (digest: string) => {
+        const data = await getPackageByDigest(digest);
+        setPackageAddress(data?.packageId || "")
+
+        // Fetching package ABI
+        if (data?.packageId) {
+            logger.success(`Contract deployed at: ${data?.packageId || ""}`)
+
+            const packageAddress = data?.packageId
+            const pkg = await getNormalizedMoveModulesByPackage(packageAddress)
+            if (pkg) {
+                moveHook.setContract(packageAddress, pkg)
+            }
+        }
+    }
+
     return <div>
         <div className="flex items-center justify-center my-2">
             <ConnectButton />
@@ -379,7 +404,7 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
 
             <Button
                 size="sm"
-                onClick={() => getPackageByDigest(packageAddress)}
+                onClick={() => handlePackageByDigest(packageAddress)}
                 variant="default"
                 disabled={!packageAddress}
             >
