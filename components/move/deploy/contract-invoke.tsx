@@ -107,6 +107,7 @@ export function ContractInvoke({ className }: ContractInvokeProps) {
             },
             onError: async (result) => {
                 console.log(result)
+                logger.error(`Contract Deployment Failed. Make sure you switch to the correct network in IDE Settings`)
             }
         });
     }

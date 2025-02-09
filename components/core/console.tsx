@@ -5,17 +5,17 @@ import { useEffect, useRef } from "react"
 import { Title } from "./components/title"
 import { useLogger } from "./providers/logger-provider"
 
-interface ConsoleLoggerProps extends React.HTMLAttributes<HTMLButtonElement> {}
+interface ConsoleLoggerProps extends React.HTMLAttributes<HTMLButtonElement> { }
 
 export function ConsoleLogger({ className }: ConsoleLoggerProps) {
   const logger = useLogger()
   const lastLogRef = useRef<HTMLDivElement>(null) // Reference for the console container
 
-  useEffect(() => {
-    if (lastLogRef.current) {
-      lastLogRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [logger.logs])
+  // useEffect(() => {
+  //   if (lastLogRef.current) {
+  //     lastLogRef.current.scrollIntoView({ behavior: "smooth" })
+  //   }
+  // }, [logger.logs])
 
   const generateColor = (type: string = "default"): string => {
     const colors: { [key: string]: string } = {
@@ -48,7 +48,7 @@ export function ConsoleLogger({ className }: ConsoleLoggerProps) {
                 log.type
               )}`}
             >
-              <div className="text-wrap">{log.text}</div>
+              <div className="break-all">{log.text}</div>
             </code>
             <div>{extractTimeFromISOString(log.timestamp)}</div>
           </div>
